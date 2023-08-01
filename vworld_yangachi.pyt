@@ -12,8 +12,8 @@ class Toolbox(object):
     def __init__(self):
         """Define the toolbox (the name of the toolbox is the name of the
         .pyt file)."""
-        self.label = "VWorld 싹쓸이"
-        self.alias = "VWorld 싹쓸이"
+        self.label = "VWorld 크롤링"
+        self.alias = "VWorld 크롤링"
 
         # List of tool classes associated with this toolbox
         self.tools = [Ssagsre]
@@ -22,15 +22,17 @@ class Toolbox(object):
 class Ssagsre(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "싸그리싹싹"
+        self.label = "VWorld 크롤러"
         self.description = "VWorld에서 필요한 콘텐츠를 긁어온다"
         self.canRunInBackground = False
         self.X_MIN: int = 700_000
         self.X_MAX: int = 1_400_000
         self.Y_MIN: int = 1_300_000
         self.Y_MAX: int = 2_100_000
-        self.X_DIFF: int = 100_000
-        self.y_DIFF: int = 100_000
+        self.X_DIFF: int = 100_000  # 기본 격자 크기
+        self.Y_DIFF: int = 100_000  # 기본 격자 크기
+        self.X_DELT: int = 5_000  # 보조 격자 크기 (만약 기본 격자에 1000개 이상의 피처가 있다면 한 번 더 쪼개는 용도)
+        self.Y_DELT: int = 5_000  # 보조 격자 크기 (만약 기본 격자에 1000개 이상의 피처가 있다면 한 번 더 쪼개는 용도)
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -101,13 +103,12 @@ class Ssagsre(object):
                 "srsname": "EPSG:5179",
                 "bbox": ",".join([str(coord) for coord in bbox]),
             },
-        ).json()
-
-        arcpy.AddMessage(
-            f"{resp.get('bbox') or 'NO VALUE'}: {resp.get('totalFeatures') or 'NO VAUE'}"
         )
-
-        return resp
+        try:
+            return resp.json()
+        except Exception as e:
+            arcpy.AddMessage(f"{e}")
+            arcpy.AddMessage(f"{resp.content.decode()}")
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
@@ -133,19 +134,32 @@ class Ssagsre(object):
         }
         with open(output_folder / f"{layer_name}.json", "w", encoding="utf-8") as f:
             for x in range(self.X_MIN, self.X_MAX, self.X_DIFF):
-                for y in range(self.Y_MIN, self.Y_MAX, self.y_DIFF):
-                    bbox = [x, y, x + self.X_DIFF, y + self.y_DIFF]
-                    resp = (
-                        self.make_api_call(
-                            api_key=api_key,
-                            layer_name=layer_name,
-                            bbox=bbox,
-                        ).get("features")
-                        or []
+                for y in range(self.Y_MIN, self.Y_MAX, self.Y_DIFF):
+                    bbox = [x, y, x + self.X_DIFF, y + self.Y_DIFF]
+                    resp = self.make_api_call(
+                        api_key=api_key,
+                        layer_name=layer_name,
+                        bbox=bbox,
                     )
 
-                    _json["features"] += resp
-                    _json["totalFeatures"] += len(resp)
+                    if resp.get("totalFeatures") > 1000:
+                        for _x in range(x, x + self.X_DIFF, self.X_DELT):
+                            for _y in range(y, y + self.Y_DIFF, self.Y_DELT):
+                                _bbox = [_x, _y, _x + self.X_DELT, _y + self.Y_DELT]
+                                _resp = self.make_api_call(
+                                    api_key=api_key,
+                                    layer_name=layer_name,
+                                    bbox=_bbox,
+                                )
+
+                                _features = _resp.get("features") or []
+                                _json["features"] += _features
+                                _json["totalFeatures"] += len(_features)
+                    else:
+                        features = resp.get("features") or []
+
+                        _json["features"] += features
+                        _json["totalFeatures"] += len(features)
             f.write(dumps(_json))
         arcpy.conversion.JSONToFeatures(
             str(output_folder / f"{layer_name}.json"),

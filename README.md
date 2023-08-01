@@ -11,6 +11,3 @@ ArcGIS 시스템을 보안을 위해 HTTP 접근을 막아버렸다.
 - **Result Feature Name**은 최종적으로 추가될 레이어의 이름이다. 한글로된 피처명도 처리할 수 있으니 알맞게 사용하자.
 - **Output GDB**는 굳이 설명이 필요한가?
 - **Output Folder for JSON files**는 아무 폴더나 선택하면 된다. 이 도구는 API를 통해 JSON을 내려받고, 그 JSON을 통해 피처를 생성한다. 이 방법은 진주 서상원 선생님께서 고안하셨다.
-
-
-test git
