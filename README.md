@@ -1,4 +1,4 @@
-# VWorld 양아치
+# VWorld 크롤러
 
 ArcGIS 시스템을 보안을 위해 HTTP 접근을 막아버렸다.
 하지만 VWorld는 불쌍한 ArcGIS를 신경쓰지 않고 일방적으로 HTTP만을 고집했다.
